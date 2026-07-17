@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type {
   OneFactoryConfig,
-  SafeConfigurationSummary
+  SafeConfigurationSummary,
 } from "../src/config.js";
 import { OneFactoryClient } from "../src/onefactory-client.js";
 import { createServer } from "../src/server.js";
@@ -14,19 +14,22 @@ const config: OneFactoryConfig = {
   baseUrl: "https://www.1factory.co/api/v1",
   enableWrites: false,
   organizationId: "integration-secret-org",
-  requestTimeoutMs: 5_000
+  redactedFields: new Set(),
+  requestTimeoutMs: 5_000,
 };
 
 const summary: SafeConfigurationSummary = {
   apiEnvironment: "sandbox",
   requestTimeoutMs: 5_000,
-  writesEnabled: false
+  writesEnabled: false,
 };
 
 const connectedClients: Client[] = [];
 
 afterEach(async () => {
-  await Promise.all(connectedClients.splice(0).map(async (client) => client.close()));
+  await Promise.all(
+    connectedClients.splice(0).map(async (client) => client.close()),
+  );
 });
 
 async function connectTestClient(fetchImplementation: typeof fetch) {
@@ -48,25 +51,42 @@ describe("MCP server integration", () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(JSON.stringify([{ part_number: "P-200", rev: "B" }]), {
         headers: { "content-type": "application/json" },
-        status: 200
-      })
+        status: 200,
+      }),
     );
     const { client, server } = await connectTestClient(fetchMock);
 
     try {
       const tools = await client.listTools();
-      expect(tools.tools).toHaveLength(1);
-      expect(tools.tools[0]).toMatchObject({
-        name: "search_part_masters",
-        annotations: {
-          destructiveHint: false,
-          readOnlyHint: true
-        }
-      });
+      expect(tools.tools).toHaveLength(10);
+      expect(tools.tools).toContainEqual(
+        expect.objectContaining({
+          name: "search_part_masters",
+          annotations: {
+            destructiveHint: false,
+            idempotentHint: true,
+            openWorldHint: false,
+            readOnlyHint: true,
+          },
+        }),
+      );
+      expect(tools.tools.map((tool) => tool.name)).toEqual(
+        expect.arrayContaining([
+          "list_plans",
+          "get_plan",
+          "list_inspections",
+          "get_inspection",
+          "list_fais",
+          "get_fai",
+          "list_suppliers",
+          "get_supplier",
+          "list_qms_records",
+        ]),
+      );
 
       const result = await client.callTool({
         name: "search_part_masters",
-        arguments: { page: 0, page_size: 10, part_number: "P-200" }
+        arguments: { page: 0, page_size: 10, part_number: "P-200" },
       });
 
       expect(result.isError).not.toBe(true);
@@ -74,9 +94,42 @@ describe("MCP server integration", () => {
         count: 1,
         page: 0,
         page_size: 10,
-        records: [{ part_number: "P-200", rev: "B" }]
+        records: [{ part_number: "P-200", rev: "B" }],
       });
       expect(fetchMock).toHaveBeenCalledOnce();
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("invokes a scoped Phase 2 list tool with bounded pagination", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify([{ ID: 9, part_number: "DEMO-9" }]), {
+        headers: { "content-type": "application/json" },
+        status: 200,
+      }),
+    );
+    const { client, server } = await connectTestClient(fetchMock);
+
+    try {
+      const result = await client.callTool({
+        name: "list_plans",
+        arguments: {
+          scope: "manufacturing",
+          page: 0,
+          page_size: 25,
+          part_number: "DEMO-9",
+        },
+      });
+
+      expect(result.isError).not.toBe(true);
+      expect(result.structuredContent).toMatchObject({
+        count: 1,
+        records: [{ ID: 9, part_number: "DEMO-9" }],
+      });
+      expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
+        "/mfg/plans?page=0&page_size=25&part_number=DEMO-9",
+      );
     } finally {
       await server.close();
     }
@@ -89,17 +142,17 @@ describe("MCP server integration", () => {
     try {
       const resources = await client.listResources();
       expect(resources.resources).toEqual([
-        expect.objectContaining({ uri: "onefactory://server/status" })
+        expect.objectContaining({ uri: "onefactory://server/status" }),
       ]);
 
       const result = await client.readResource({
-        uri: "onefactory://server/status"
+        uri: "onefactory://server/status",
       });
       const resource = result.contents[0];
       expect(resource).toBeDefined();
       expect(resource).toHaveProperty("text");
       const status = JSON.parse(
-        resource && "text" in resource ? resource.text : "{}"
+        resource && "text" in resource ? resource.text : "{}",
       ) as Record<string, unknown>;
       const serialized = JSON.stringify(status);
 
@@ -107,7 +160,7 @@ describe("MCP server integration", () => {
         api_environment: "sandbox",
         name: "1factory-mcp",
         upstream_checked: false,
-        writes_enabled: false
+        writes_enabled: false,
       });
       expect(serialized).not.toContain("integration-secret-key");
       expect(serialized).not.toContain("integration-secret-org");

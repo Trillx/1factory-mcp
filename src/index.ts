@@ -5,7 +5,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import {
   ConfigurationError,
   loadConfig,
-  safeConfigurationSummary
+  safeConfigurationSummary,
 } from "./config.js";
 import { OneFactoryClient } from "./onefactory-client.js";
 import { createServer } from "./server.js";

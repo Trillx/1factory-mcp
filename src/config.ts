@@ -2,7 +2,7 @@ const ALLOWED_BASE_URLS = new Set([
   "https://www.1factory.co/api/v1",
   "https://www.1factory.com/api/v1",
   "https://val.1factory.co/api/v1",
-  "https://val.1factory.com/api/v1"
+  "https://val.1factory.com/api/v1",
 ]);
 
 export interface OneFactoryConfig {
@@ -10,15 +10,13 @@ export interface OneFactoryConfig {
   baseUrl: string;
   enableWrites: boolean;
   organizationId: string;
+  redactedFields: ReadonlySet<string>;
   requestTimeoutMs: number;
 }
 
 export interface SafeConfigurationSummary {
   apiEnvironment:
-    | "sandbox"
-    | "production"
-    | "validated-sandbox"
-    | "validated-production";
+    "sandbox" | "production" | "validated-sandbox" | "validated-production";
   requestTimeoutMs: number;
   writesEnabled: boolean;
 }
@@ -62,10 +60,31 @@ function parseTimeout(value: string | undefined): number {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < 1_000 || parsed > 60_000) {
     throw new ConfigurationError(
-      "ONEFACTORY_REQUEST_TIMEOUT_MS must be an integer from 1000 to 60000"
+      "ONEFACTORY_REQUEST_TIMEOUT_MS must be an integer from 1000 to 60000",
     );
   }
   return parsed;
+}
+
+function parseRedactedFields(value: string | undefined): ReadonlySet<string> {
+  if (value === undefined || value.trim() === "") {
+    return new Set();
+  }
+
+  const fields = value.split(",").map((field) => field.trim());
+  if (
+    fields.some(
+      (field) =>
+        field.length === 0 ||
+        field.length > 64 ||
+        !/^[A-Za-z][A-Za-z0-9_]*$/.test(field),
+    )
+  ) {
+    throw new ConfigurationError(
+      "ONEFACTORY_REDACT_FIELDS must be a comma-separated list of field names",
+    );
+  }
+  return new Set(fields);
 }
 
 function normalizeBaseUrl(value: string): string {
@@ -78,38 +97,39 @@ function normalizeBaseUrl(value: string): string {
 
   if (url.username || url.password || url.search || url.hash) {
     throw new ConfigurationError(
-      "ONEFACTORY_BASE_URL cannot contain credentials, a query, or a fragment"
+      "ONEFACTORY_BASE_URL cannot contain credentials, a query, or a fragment",
     );
   }
 
   const normalized = url.toString().replace(/\/$/, "");
   if (!ALLOWED_BASE_URLS.has(normalized)) {
     throw new ConfigurationError(
-      "ONEFACTORY_BASE_URL must be an allowlisted 1Factory API endpoint"
+      "ONEFACTORY_BASE_URL must be an allowlisted 1Factory API endpoint",
     );
   }
   return normalized;
 }
 
 export function loadConfig(
-  environment: NodeJS.ProcessEnv = process.env
+  environment: NodeJS.ProcessEnv = process.env,
 ): OneFactoryConfig {
   return {
     apiKey: required(environment, "ONEFACTORY_API_KEY"),
     baseUrl: normalizeBaseUrl(
-      environment.ONEFACTORY_BASE_URL ?? "https://www.1factory.co/api/v1"
+      environment.ONEFACTORY_BASE_URL ?? "https://www.1factory.co/api/v1",
     ),
     enableWrites: parseBoolean(
       environment.ONEFACTORY_ENABLE_WRITES,
-      "ONEFACTORY_ENABLE_WRITES"
+      "ONEFACTORY_ENABLE_WRITES",
     ),
     organizationId: required(environment, "ONEFACTORY_ORG_ID"),
-    requestTimeoutMs: parseTimeout(environment.ONEFACTORY_REQUEST_TIMEOUT_MS)
+    redactedFields: parseRedactedFields(environment.ONEFACTORY_REDACT_FIELDS),
+    requestTimeoutMs: parseTimeout(environment.ONEFACTORY_REQUEST_TIMEOUT_MS),
   };
 }
 
 export function safeConfigurationSummary(
-  config: OneFactoryConfig
+  config: OneFactoryConfig,
 ): SafeConfigurationSummary {
   const environments: Record<
     string,
@@ -118,7 +138,7 @@ export function safeConfigurationSummary(
     "https://www.1factory.co/api/v1": "sandbox",
     "https://www.1factory.com/api/v1": "production",
     "https://val.1factory.co/api/v1": "validated-sandbox",
-    "https://val.1factory.com/api/v1": "validated-production"
+    "https://val.1factory.com/api/v1": "validated-production",
   };
   const apiEnvironment = environments[config.baseUrl];
   if (apiEnvironment === undefined) {
@@ -128,6 +148,6 @@ export function safeConfigurationSummary(
   return {
     apiEnvironment,
     requestTimeoutMs: config.requestTimeoutMs,
-    writesEnabled: config.enableWrites
+    writesEnabled: config.enableWrites,
   };
 }

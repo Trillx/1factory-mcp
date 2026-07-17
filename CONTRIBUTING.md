@@ -28,10 +28,10 @@ Contributions should preserve these defaults:
 1. Open an issue describing the use case or defect, unless the change is a small documentation correction.
 2. Create a focused branch from the default branch.
 3. Add tests for behavior and error paths.
-4. Run formatting, linting, type checking, tests, and security checks.
+4. Run `npm run check` and `npm audit --omit=dev --audit-level=high`.
 5. Open a pull request describing what changed, why, validation performed, and security considerations.
 
-Exact development commands will be added when the TypeScript project is scaffolded.
+Use `npm run format` to apply formatting before running the full check.
 
 ## Commit and pull-request hygiene
 

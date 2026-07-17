@@ -1,21 +1,23 @@
 import type { OneFactoryConfig } from "./config.js";
-import { z } from "zod";
+import type { z } from "zod";
+import {
+  boundedList,
+  faiDetailSchema,
+  faiSchema,
+  inspectionDetailSchema,
+  inspectionSchema,
+  partMasterSchema,
+  planDetailSchema,
+  planSchema,
+  qmsRecordSchema,
+  supplierSchema,
+} from "./schemas.js";
 
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
+const MAX_PAGE_SIZE = 100;
+const MAX_RESULT_WINDOW = 1_000;
 
-export const partMasterSchema = z
-  .object({
-    ID: z.number().int().optional(),
-    description: z.string().max(255).nullable().optional(),
-    is_assembly: z.boolean().optional(),
-    is_buy: z.boolean().optional(),
-    part_number: z.string().min(1).max(255),
-    rev: z.string().max(255).nullable().optional(),
-    status: z.enum(["Active", "Inactive"]).optional(),
-    updated_on: z.string().optional()
-  });
-
-const partMasterListSchema = z.array(partMasterSchema).max(500);
+const partMasterListSchema = boundedList(partMasterSchema);
 
 export type PartMaster = z.infer<typeof partMasterSchema>;
 
@@ -25,6 +27,17 @@ export interface SearchPartMastersOptions {
   partNumber?: string;
   revision?: string;
   status?: "Active" | "Inactive";
+}
+
+export type RecordScope =
+  "customer" | "manufacturing" | "receiving" | "supplier";
+export type QmsRecordType = "capa" | "complaint" | "ncr";
+
+export interface ListOptions {
+  page?: number;
+  pageSize?: number;
+  partNumber?: string;
+  revision?: string;
 }
 
 export interface RateLimitSnapshot {
@@ -69,7 +82,7 @@ function rateLimitFrom(headers: Headers): RateLimitSnapshot {
     dayResetSeconds: optionalInteger(headers, "x-ratelimit-day-reset"),
     minuteLimit: optionalInteger(headers, "x-ratelimit-minute-limit"),
     minuteRemaining: optionalInteger(headers, "x-ratelimit-minute-remaining"),
-    minuteResetSeconds: optionalInteger(headers, "x-ratelimit-minute-reset")
+    minuteResetSeconds: optionalInteger(headers, "x-ratelimit-minute-reset"),
   };
 }
 
@@ -101,22 +114,68 @@ function safeUpstreamError(status: number, body: string): OneFactoryApiError {
   return new OneFactoryApiError(
     `1Factory request failed with HTTP ${status}${suffix}`,
     status,
-    upstreamCode
+    upstreamCode,
   );
+}
+
+function paginationQuery(options: ListOptions): URLSearchParams {
+  const page = options.page ?? 0;
+  const pageSize = options.pageSize ?? 50;
+  if (
+    !Number.isInteger(page) ||
+    page < 0 ||
+    !Number.isInteger(pageSize) ||
+    pageSize < 1 ||
+    pageSize > MAX_PAGE_SIZE ||
+    page * pageSize + pageSize > MAX_RESULT_WINDOW
+  ) {
+    throw new OneFactoryApiError(
+      "Requested page exceeds the server pagination limits",
+      400,
+    );
+  }
+  const query = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize),
+  });
+  if (options.partNumber) query.set("part_number", options.partNumber);
+  if (options.revision) query.set("rev", options.revision);
+  return query;
+}
+
+function scopePrefix(scope: RecordScope): string {
+  return {
+    customer: "/cus",
+    manufacturing: "/mfg",
+    receiving: "/rec",
+    supplier: "/sup",
+  }[scope];
+}
+
+function redactFields(value: unknown, fields: ReadonlySet<string>): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry) => redactFields(entry, fields));
+  }
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([key]) => !fields.has(key))
+        .map(([key, entry]) => [key, redactFields(entry, fields)]),
+    );
+  }
+  return value;
 }
 
 export class OneFactoryClient {
   constructor(
     private readonly config: OneFactoryConfig,
-    private readonly fetchImplementation: typeof fetch = fetch
+    private readonly fetchImplementation: typeof fetch = fetch,
   ) {}
 
   async searchPartMasters(
-    options: SearchPartMastersOptions
+    options: SearchPartMastersOptions,
   ): Promise<OneFactoryResponse<PartMaster[]>> {
-    const query = new URLSearchParams();
-    query.set("page", String(options.page ?? 0));
-    query.set("page_size", String(options.pageSize ?? 50));
+    const query = paginationQuery(options);
 
     if (options.partNumber) query.set("part_number", options.partNumber);
     if (options.revision) query.set("rev", options.revision);
@@ -124,18 +183,73 @@ export class OneFactoryClient {
 
     return this.getJson(
       `/partMasters?${query.toString()}`,
-      partMasterListSchema
+      partMasterListSchema,
+    );
+  }
+
+  async listPlans(scope: RecordScope, options: ListOptions) {
+    return this.getJson(
+      `${scopePrefix(scope)}/plans?${paginationQuery(options).toString()}`,
+      boundedList(planSchema),
+    );
+  }
+
+  async getPlan(scope: RecordScope, id: number) {
+    return this.getJson(`${scopePrefix(scope)}/plans/${id}`, planDetailSchema);
+  }
+
+  async listInspections(scope: RecordScope, options: ListOptions) {
+    return this.getJson(
+      `${scopePrefix(scope)}/inspections?${paginationQuery(options).toString()}`,
+      boundedList(inspectionSchema),
+    );
+  }
+
+  async getInspection(scope: RecordScope, id: number) {
+    return this.getJson(
+      `${scopePrefix(scope)}/inspections/${id}`,
+      inspectionDetailSchema,
+    );
+  }
+
+  async listFais(scope: RecordScope, options: ListOptions) {
+    return this.getJson(
+      `${scopePrefix(scope)}/fais?${paginationQuery(options).toString()}`,
+      boundedList(faiSchema),
+    );
+  }
+
+  async getFai(scope: RecordScope, id: number) {
+    return this.getJson(`${scopePrefix(scope)}/fais/${id}`, faiDetailSchema);
+  }
+
+  async listSuppliers(options: ListOptions) {
+    return this.getJson(
+      `/sup?${paginationQuery(options).toString()}`,
+      boundedList(supplierSchema),
+    );
+  }
+
+  async getSupplier(id: number) {
+    return this.getJson(`/sup/${id}`, supplierSchema);
+  }
+
+  async listQmsRecords(type: QmsRecordType, options: ListOptions) {
+    const path = { capa: "capas", complaint: "complaints", ncr: "ncrs" }[type];
+    return this.getJson(
+      `/qms/${path}?${paginationQuery(options).toString()}`,
+      boundedList(qmsRecordSchema),
     );
   }
 
   private async getJson<TSchema extends z.ZodType>(
     pathAndQuery: string,
-    schema: TSchema
+    schema: TSchema,
   ): Promise<OneFactoryResponse<z.output<TSchema>>> {
     const controller = new AbortController();
     const timeout = setTimeout(
       () => controller.abort(),
-      this.config.requestTimeoutMs
+      this.config.requestTimeoutMs,
     );
 
     try {
@@ -145,12 +259,12 @@ export class OneFactoryClient {
           headers: {
             Accept: "application/json",
             "x-1factory-key": this.config.apiKey,
-            "x-1factory-org": this.config.organizationId
+            "x-1factory-org": this.config.organizationId,
           },
           method: "GET",
           redirect: "error",
-          signal: controller.signal
-        }
+          signal: controller.signal,
+        },
       );
 
       const body = await readBoundedBody(response);
@@ -162,7 +276,7 @@ export class OneFactoryClient {
       if (!contentType.toLowerCase().includes("application/json")) {
         throw new OneFactoryApiError(
           "1Factory returned an unexpected content type",
-          502
+          502,
         );
       }
 
@@ -177,11 +291,17 @@ export class OneFactoryClient {
       if (!validated.success) {
         throw new OneFactoryApiError(
           "1Factory returned data that did not match the expected schema",
-          502
+          502,
         );
       }
 
-      return { data: validated.data, rateLimit: rateLimitFrom(response.headers) };
+      return {
+        data: redactFields(
+          validated.data,
+          this.config.redactedFields,
+        ) as z.output<TSchema>,
+        rateLimit: rateLimitFrom(response.headers),
+      };
     } catch (error) {
       if (error instanceof OneFactoryApiError) {
         throw error;
