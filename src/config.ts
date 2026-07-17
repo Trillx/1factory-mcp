@@ -13,6 +13,16 @@ export interface OneFactoryConfig {
   requestTimeoutMs: number;
 }
 
+export interface SafeConfigurationSummary {
+  apiEnvironment:
+    | "sandbox"
+    | "production"
+    | "validated-sandbox"
+    | "validated-production";
+  requestTimeoutMs: number;
+  writesEnabled: boolean;
+}
+
 export class ConfigurationError extends Error {
   constructor(message: string) {
     super(message);
@@ -95,5 +105,29 @@ export function loadConfig(
     ),
     organizationId: required(environment, "ONEFACTORY_ORG_ID"),
     requestTimeoutMs: parseTimeout(environment.ONEFACTORY_REQUEST_TIMEOUT_MS)
+  };
+}
+
+export function safeConfigurationSummary(
+  config: OneFactoryConfig
+): SafeConfigurationSummary {
+  const environments: Record<
+    string,
+    SafeConfigurationSummary["apiEnvironment"]
+  > = {
+    "https://www.1factory.co/api/v1": "sandbox",
+    "https://www.1factory.com/api/v1": "production",
+    "https://val.1factory.co/api/v1": "validated-sandbox",
+    "https://val.1factory.com/api/v1": "validated-production"
+  };
+  const apiEnvironment = environments[config.baseUrl];
+  if (apiEnvironment === undefined) {
+    throw new ConfigurationError("Cannot summarize an unapproved API endpoint");
+  }
+
+  return {
+    apiEnvironment,
+    requestTimeoutMs: config.requestTimeoutMs,
+    writesEnabled: config.enableWrites
   };
 }

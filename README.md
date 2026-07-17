@@ -25,7 +25,9 @@ Repository guidance:
 
 ## Development quickstart
 
-The initial scaffold provides one read-only MCP tool, `search_part_masters`, over local STDIO. It defaults to the 1Factory sandbox and refuses non-allowlisted API hosts.
+The initial scaffold provides one read-only MCP tool, `search_part_masters`, over local STDIO. It validates upstream part-master responses at runtime, strips fields that are not approved for search results, defaults to the 1Factory sandbox, and refuses non-allowlisted API hosts.
+
+The `onefactory://server/status` resource reports the server version, transport, timeout, write setting, and named API environment. It never returns credentials or the organization identifier, and reading it does not contact 1Factory.
 
 Prerequisites:
 

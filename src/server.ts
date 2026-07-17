@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
+import type { SafeConfigurationSummary } from "./config.js";
 import {
   OneFactoryApiError,
   type OneFactoryClient
@@ -26,13 +27,48 @@ const searchPartMastersInput = {
   status: z.enum(["Active", "Inactive"]).optional()
 };
 
-export function createServer(client: OneFactoryClient): McpServer {
+const SERVER_NAME = "onefactory-mcp";
+const SERVER_VERSION = "0.1.0";
+const STATUS_URI = "onefactory://server/status";
+
+export function createServer(
+  client: OneFactoryClient,
+  configuration: SafeConfigurationSummary
+): McpServer {
   const server = new McpServer(
-    { name: "onefactory-mcp", version: "0.1.0" },
+    { name: SERVER_NAME, version: SERVER_VERSION },
     {
       instructions:
         "This server is read-only. Prefer narrow filters and bounded pages. Never request or reveal 1Factory credentials."
     }
+  );
+
+  server.registerResource(
+    "server_status",
+    STATUS_URI,
+    {
+      title: "1Factory MCP server status",
+      description:
+        "Non-secret server configuration and version information. Reading this resource does not contact 1Factory.",
+      mimeType: "application/json"
+    },
+    async (uri) => ({
+      contents: [
+        {
+          uri: uri.href,
+          mimeType: "application/json",
+          text: JSON.stringify({
+            api_environment: configuration.apiEnvironment,
+            name: SERVER_NAME,
+            request_timeout_ms: configuration.requestTimeoutMs,
+            transport: "stdio",
+            upstream_checked: false,
+            version: SERVER_VERSION,
+            writes_enabled: configuration.writesEnabled
+          })
+        }
+      ]
+    })
   );
 
   server.registerTool(

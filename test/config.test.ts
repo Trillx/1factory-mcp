@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { ConfigurationError, loadConfig } from "../src/config.js";
+import {
+  ConfigurationError,
+  loadConfig,
+  safeConfigurationSummary
+} from "../src/config.js";
 
 const validEnvironment = {
   ONEFACTORY_API_KEY: "test-key",
@@ -40,5 +44,18 @@ describe("loadConfig", () => {
 
   it("requires both upstream credential values", () => {
     expect(() => loadConfig({})).toThrow("ONEFACTORY_API_KEY is required");
+  });
+
+  it("produces a summary without credentials or organization identifiers", () => {
+    const config = loadConfig(validEnvironment);
+    const summary = safeConfigurationSummary(config);
+
+    expect(summary).toEqual({
+      apiEnvironment: "sandbox",
+      requestTimeoutMs: 15_000,
+      writesEnabled: false
+    });
+    expect(JSON.stringify(summary)).not.toContain("test-key");
+    expect(JSON.stringify(summary)).not.toContain("test-org");
   });
 });

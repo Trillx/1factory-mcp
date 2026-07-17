@@ -80,4 +80,42 @@ describe("OneFactoryClient", () => {
       "unexpected content type"
     );
   });
+
+  it("rejects JSON that does not match the documented response schema", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify([{ rev: "A", unexpected: true }]), {
+        headers: { "content-type": "application/json" },
+        status: 200
+      })
+    );
+    const client = new OneFactoryClient(config, fetchMock);
+
+    await expect(client.searchPartMasters({})).rejects.toThrow(
+      "did not match the expected schema"
+    );
+  });
+
+  it("strips fields that are not approved for search results", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify([
+          {
+            part_number: "P-300",
+            rev: "C",
+            comments: "sensitive internal note",
+            cost: 42.5,
+            future_api_field: "unexpected"
+          }
+        ]),
+        { headers: { "content-type": "application/json" }, status: 200 }
+      )
+    );
+    const client = new OneFactoryClient(config, fetchMock);
+
+    const result = await client.searchPartMasters({});
+
+    expect(result.data).toEqual([{ part_number: "P-300", rev: "C" }]);
+    expect(JSON.stringify(result.data)).not.toContain("sensitive internal note");
+    expect(JSON.stringify(result.data)).not.toContain("future_api_field");
+  });
 });

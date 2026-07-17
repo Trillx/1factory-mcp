@@ -35,9 +35,11 @@ Exit criteria: the repository is public, licensed, contains no credentials, and 
 - [x] Fail closed when configuration is missing, malformed, or points to an unapproved host.
 - [x] Implement an HTTP client that injects credentials internally and redacts them from errors.
 - [x] Implement upstream error normalization, timeouts, response-size limits, and rate-limit reporting.
-- [ ] Expose a health/version resource that never tests or reveals credentials.
+- [x] Validate part-master response bodies and strip unapproved fields with a runtime schema.
+- [x] Expose a health/version resource that never tests or reveals credentials.
 - [x] Implement `search_part_masters` as the first end-to-end MCP tool.
 - [x] Add unit tests proving upstream error content and secrets are not reflected to callers.
+- [x] Add MCP protocol-level tests for tool discovery, tool calls, and status-resource reads.
 
 Exit criteria: a local MCP client can search synthetic or sandbox part-master data over STDIO without exposing credentials.
 

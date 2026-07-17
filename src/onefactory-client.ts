@@ -1,19 +1,23 @@
 import type { OneFactoryConfig } from "./config.js";
+import { z } from "zod";
 
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
 
-export interface PartMaster {
-  ID?: number;
-  description?: string | null;
-  is_assembly?: boolean;
-  is_buy?: boolean;
-  is_itar?: boolean;
-  part_number: string;
-  rev?: string | null;
-  status?: "Active" | "Inactive";
-  updated_on?: string;
-  [key: string]: unknown;
-}
+export const partMasterSchema = z
+  .object({
+    ID: z.number().int().optional(),
+    description: z.string().max(255).nullable().optional(),
+    is_assembly: z.boolean().optional(),
+    is_buy: z.boolean().optional(),
+    part_number: z.string().min(1).max(255),
+    rev: z.string().max(255).nullable().optional(),
+    status: z.enum(["Active", "Inactive"]).optional(),
+    updated_on: z.string().optional()
+  });
+
+const partMasterListSchema = z.array(partMasterSchema).max(500);
+
+export type PartMaster = z.infer<typeof partMasterSchema>;
 
 export interface SearchPartMastersOptions {
   page?: number;
@@ -118,10 +122,16 @@ export class OneFactoryClient {
     if (options.revision) query.set("rev", options.revision);
     if (options.status) query.set("status", options.status);
 
-    return this.getJson<PartMaster[]>(`/partMasters?${query.toString()}`);
+    return this.getJson(
+      `/partMasters?${query.toString()}`,
+      partMasterListSchema
+    );
   }
 
-  private async getJson<T>(pathAndQuery: string): Promise<OneFactoryResponse<T>> {
+  private async getJson<TSchema extends z.ZodType>(
+    pathAndQuery: string,
+    schema: TSchema
+  ): Promise<OneFactoryResponse<z.output<TSchema>>> {
     const controller = new AbortController();
     const timeout = setTimeout(
       () => controller.abort(),
@@ -156,14 +166,22 @@ export class OneFactoryClient {
         );
       }
 
-      let data: T;
+      let parsed: unknown;
       try {
-        data = JSON.parse(body) as T;
+        parsed = JSON.parse(body) as unknown;
       } catch {
         throw new OneFactoryApiError("1Factory returned invalid JSON", 502);
       }
 
-      return { data, rateLimit: rateLimitFrom(response.headers) };
+      const validated = schema.safeParse(parsed);
+      if (!validated.success) {
+        throw new OneFactoryApiError(
+          "1Factory returned data that did not match the expected schema",
+          502
+        );
+      }
+
+      return { data: validated.data, rateLimit: rateLimitFrom(response.headers) };
     } catch (error) {
       if (error instanceof OneFactoryApiError) {
         throw error;
