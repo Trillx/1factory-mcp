@@ -1,0 +1,35 @@
+name: Feature request
+description: Propose a narrowly scoped capability
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use case
+      description: Describe the user problem without including production or regulated data.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true
+  - type: dropdown
+    id: access
+    attributes:
+      label: Upstream access
+      options:
+        - Read-only
+        - Write-capable
+        - No upstream API request
+    validations:
+      required: true
+  - type: textarea
+    id: security
+    attributes:
+      label: Security and data-handling considerations
+      description: Note authorization, sensitive fields, rate limits, logging, and write effects.
+    validations:
+      required: true
