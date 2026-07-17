@@ -1,5 +1,5 @@
 {
-  "name": "onefactory-mcp",
+  "name": "1factory-mcp",
   "version": "0.1.0",
   "description": "Unofficial, security-focused MCP server for the 1Factory API",
   "type": "module",
@@ -7,17 +7,17 @@
   "author": "1Factory MCP contributors",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Trillx/onefactory-mcp.git"
+    "url": "git+https://github.com/Trillx/1factory-mcp.git"
   },
   "bugs": {
-    "url": "https://github.com/Trillx/onefactory-mcp/issues"
+    "url": "https://github.com/Trillx/1factory-mcp/issues"
   },
-  "homepage": "https://github.com/Trillx/onefactory-mcp#readme",
+  "homepage": "https://github.com/Trillx/1factory-mcp#readme",
   "engines": {
     "node": ">=20"
   },
   "bin": {
-    "onefactory-mcp": "dist/index.js"
+    "1factory-mcp": "dist/index.js"
   },
   "files": [
     "dist",

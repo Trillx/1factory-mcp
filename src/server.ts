@@ -27,7 +27,7 @@ const searchPartMastersInput = {
   status: z.enum(["Active", "Inactive"]).optional()
 };
 
-const SERVER_NAME = "onefactory-mcp";
+const SERVER_NAME = "1factory-mcp";
 const SERVER_VERSION = "0.1.0";
 const STATUS_URI = "onefactory://server/status";
 

@@ -32,7 +32,7 @@ afterEach(async () => {
 async function connectTestClient(fetchImplementation: typeof fetch) {
   const oneFactoryClient = new OneFactoryClient(config, fetchImplementation);
   const server = createServer(oneFactoryClient, summary);
-  const client = new Client({ name: "onefactory-mcp-test", version: "1.0.0" });
+  const client = new Client({ name: "1factory-mcp-test", version: "1.0.0" });
   const [clientTransport, serverTransport] =
     InMemoryTransport.createLinkedPair();
 
@@ -105,7 +105,7 @@ describe("MCP server integration", () => {
 
       expect(status).toMatchObject({
         api_environment: "sandbox",
-        name: "onefactory-mcp",
+        name: "1factory-mcp",
         upstream_checked: false,
         writes_enabled: false
       });

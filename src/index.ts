@@ -22,7 +22,7 @@ main().catch((error: unknown) => {
   const message =
     error instanceof ConfigurationError
       ? error.message
-      : "onefactory-mcp failed to start";
+      : "1factory-mcp failed to start";
   process.stderr.write(`${message}\n`);
   process.exitCode = 1;
 });
