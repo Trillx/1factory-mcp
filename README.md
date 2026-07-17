@@ -7,7 +7,7 @@ An open-source Model Context Protocol (MCP) bridge for the [1Factory API](https:
 
 ## Project status
 
-This repository is intended to provide a secure foundation for exposing selected 1Factory operations as MCP tools. The safest initial release should be:
+The `0.2.0-beta.1` line provides a security-focused, read-only preview for exposing selected 1Factory operations as MCP tools. It is:
 
 - read-only by default;
 - configured for one 1Factory organization at a time;
@@ -20,12 +20,14 @@ Do not describe the project as production-ready until its authentication, author
 Repository guidance:
 
 - [Implementation roadmap](docs/ROADMAP.md)
+- [Data exposure reference](docs/DATA_EXPOSURE.md)
+- [Threat model](docs/THREAT_MODEL.md)
 - [Security policy](SECURITY.md)
 - [Contribution guide](CONTRIBUTING.md)
 
 ## Development quickstart
 
-The initial scaffold provides one read-only MCP tool, `search_part_masters`, over local STDIO. It validates upstream part-master responses at runtime, strips fields that are not approved for search results, defaults to the 1Factory sandbox, and refuses non-allowlisted API hosts.
+The server provides ten read-only MCP tools over local STDIO. It validates upstream responses at runtime, strips fields that are not approved for model-visible results, defaults to the 1Factory sandbox, and refuses non-allowlisted API hosts.
 
 The `onefactory://server/status` resource reports the server version, transport, timeout, write setting, and named API environment. It never returns credentials or the organization identifier, and reading it does not contact 1Factory.
 
@@ -42,6 +44,36 @@ npm test
 ```
 
 Load the environment variables through your local secret-management approach, then configure your MCP client to launch `node dist/index.js`. Do not place secrets directly in shared MCP configuration files.
+
+For a pinned package tarball downloaded from a GitHub release, verify it with the release's `SHA256SUMS` file before installing. Release artifacts also include a CycloneDX SBOM.
+
+## Read-only tools
+
+| Tool                                 | Purpose                                                                         |
+| ------------------------------------ | ------------------------------------------------------------------------------- |
+| `search_part_masters`                | Search bounded part-master summaries                                            |
+| `list_plans`, `get_plan`             | List or retrieve plans in manufacturing, receiving, supplier, or customer scope |
+| `list_inspections`, `get_inspection` | List or retrieve inspections in an explicit scope                               |
+| `list_fais`, `get_fai`               | List or retrieve first-article inspections in an explicit scope                 |
+| `list_suppliers`, `get_supplier`     | List or retrieve minimized supplier records                                     |
+| `list_qms_records`                   | List NCRs, CAPAs, or complaints selected by an explicit enum                    |
+
+Every list request returns one page, with at most 100 records and a maximum 1,000-record pagination window. See the [data exposure reference](docs/DATA_EXPOSURE.md) for the field policy.
+
+Optional organization-specific redaction is configured by field name:
+
+```dotenv
+ONEFACTORY_REDACT_FIELDS=root_cause,customer_name
+```
+
+## Fictional example prompts
+
+- "List the first 20 manufacturing plans for fictional part `DEMO-100`, revision `A`."
+- "Get receiving inspection ID `42` and summarize its status."
+- "List open NCR summaries for the fictional demo organization, one page only."
+- "Show supplier ID `7` and omit any field named `customer_name` under the configured policy."
+
+Never copy production values into prompts, documentation, issues, or test fixtures.
 
 ## What the integration can expose
 
@@ -91,11 +123,11 @@ The `.co` endpoint above is the sandbox listed in the 1Factory specification. Co
 
 ### 2. Prefer the smallest deployment model
 
-| Deployment | Recommended use | Minimum security requirements |
-| --- | --- | --- |
-| Local STDIO | One user or one controlled workstation | Environment-based secrets, local process permissions, read-only tools by default |
-| Private remote server | One organization or a controlled internal team | HTTPS, authenticated MCP access, secret manager, network restrictions, centralized redacted audit logs |
-| Public multi-tenant service | Multiple unrelated organizations | Per-user authentication, encrypted per-tenant credentials, strict tenant isolation, authorization checks on every request, abuse controls, incident response, and independent security review |
+| Deployment                  | Recommended use                                | Minimum security requirements                                                                                                                                                                 |
+| --------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Local STDIO                 | One user or one controlled workstation         | Environment-based secrets, local process permissions, read-only tools by default                                                                                                              |
+| Private remote server       | One organization or a controlled internal team | HTTPS, authenticated MCP access, secret manager, network restrictions, centralized redacted audit logs                                                                                        |
+| Public multi-tenant service | Multiple unrelated organizations               | Per-user authentication, encrypted per-tenant credentials, strict tenant isolation, authorization checks on every request, abuse controls, incident response, and independent security review |
 
 Do not turn a single organization's API key into a shared public service credential. A hosted service must maintain a separate credential boundary for every 1Factory organization and must never select the tenant from an untrusted model-supplied value alone.
 

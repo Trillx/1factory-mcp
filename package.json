@@ -1,6 +1,6 @@
 {
   "name": "1factory-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0-beta.1",
   "description": "Unofficial, security-focused MCP server for the 1Factory API",
   "type": "module",
   "license": "MIT",
@@ -26,7 +26,12 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run build",
     "dev": "tsx src/index.ts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "prepack": "npm run build",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
@@ -35,9 +40,13 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@eslint/js": "10.0.1",
     "@types/node": "^26.1.1",
+    "eslint": "10.7.0",
+    "prettier": "3.9.5",
     "tsx": "^4.23.1",
-    "typescript": "^7.0.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "8.64.0",
     "vitest": "^4.1.10"
   }
 }

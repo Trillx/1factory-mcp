@@ -15,7 +15,7 @@ Dependencies should be kept deliberately small. Do not add a database, remote te
 
 ## Phase 0 — Repository foundation
 
-Status: in progress
+Status: complete
 
 - [x] Create security-focused README.
 - [x] Initialize the local Git repository.
@@ -45,24 +45,24 @@ Exit criteria: a local MCP client can search synthetic or sandbox part-master da
 
 ## Phase 2 — Read-only quality workflows
 
-- [ ] Add `list_plans` and `get_plan`.
-- [ ] Add `list_inspections` and `get_inspection`.
-- [ ] Add `list_fais` and `get_fai`.
-- [ ] Add `list_suppliers` and `get_supplier`.
-- [ ] Add `list_qms_records` with an explicit record-type enum for NCRs, CAPAs, and complaints.
-- [ ] Enforce per-tool page-size and total-result limits.
-- [ ] Add configurable field redaction and bounded response shaping.
-- [ ] Document example prompts using fictional data only.
+- [x] Add `list_plans` and `get_plan`.
+- [x] Add `list_inspections` and `get_inspection`.
+- [x] Add `list_fais` and `get_fai`.
+- [x] Add `list_suppliers` and `get_supplier`.
+- [x] Add `list_qms_records` with an explicit record-type enum for NCRs, CAPAs, and complaints.
+- [x] Enforce per-tool page-size and total-result limits.
+- [x] Add configurable field redaction and bounded response shaping.
+- [x] Document example prompts using fictional data only.
 
 Exit criteria: all supported read tools have schema validation, pagination tests, error tests, and documented data exposure.
 
 ## Phase 3 — Packaging and release hardening
 
-- [ ] Package the server for straightforward local STDIO installation.
-- [ ] Add reproducible CI for formatting, linting, type checking, tests, dependency audit, and secret scanning.
-- [ ] Generate an SBOM and attach checksums to releases.
-- [ ] Add a threat model and architecture decision records.
-- [ ] Test Windows, macOS, and Linux where supported.
+- [x] Package the server for straightforward local STDIO installation.
+- [x] Add reproducible CI for formatting, linting, type checking, tests, dependency audit, and secret scanning.
+- [x] Generate an SBOM and attach checksums to releases.
+- [x] Add a threat model and architecture decision records.
+- [x] Test Windows, macOS, and Linux where supported.
 - [ ] Publish a pre-release and request security-focused community review.
 
 Exit criteria: users can verify and run a pinned release locally with documented safe defaults.

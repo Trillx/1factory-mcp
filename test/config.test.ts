@@ -3,32 +3,48 @@ import { describe, expect, it } from "vitest";
 import {
   ConfigurationError,
   loadConfig,
-  safeConfigurationSummary
+  safeConfigurationSummary,
 } from "../src/config.js";
 
 const validEnvironment = {
   ONEFACTORY_API_KEY: "test-key",
   ONEFACTORY_BASE_URL: "https://www.1factory.co/api/v1",
-  ONEFACTORY_ORG_ID: "test-org"
+  ONEFACTORY_ORG_ID: "test-org",
 };
 
 describe("loadConfig", () => {
   it("defaults to the sandbox and disables writes", () => {
     const config = loadConfig({
       ONEFACTORY_API_KEY: "test-key",
-      ONEFACTORY_ORG_ID: "test-org"
+      ONEFACTORY_ORG_ID: "test-org",
     });
 
     expect(config.baseUrl).toBe("https://www.1factory.co/api/v1");
     expect(config.enableWrites).toBe(false);
+    expect(config.redactedFields.size).toBe(0);
+  });
+
+  it("parses a validated configurable field-redaction policy", () => {
+    const config = loadConfig({
+      ...validEnvironment,
+      ONEFACTORY_REDACT_FIELDS: "root_cause,customer_name",
+    });
+
+    expect([...config.redactedFields]).toEqual(["root_cause", "customer_name"]);
+    expect(() =>
+      loadConfig({
+        ...validEnvironment,
+        ONEFACTORY_REDACT_FIELDS: "root.cause",
+      }),
+    ).toThrow("comma-separated list of field names");
   });
 
   it("rejects a non-1Factory base URL", () => {
     expect(() =>
       loadConfig({
         ...validEnvironment,
-        ONEFACTORY_BASE_URL: "https://example.com/api/v1"
-      })
+        ONEFACTORY_BASE_URL: "https://example.com/api/v1",
+      }),
     ).toThrow(ConfigurationError);
   });
 
@@ -36,9 +52,8 @@ describe("loadConfig", () => {
     expect(() =>
       loadConfig({
         ...validEnvironment,
-        ONEFACTORY_BASE_URL:
-          "https://username:password@www.1factory.co/api/v1"
-      })
+        ONEFACTORY_BASE_URL: "https://username:password@www.1factory.co/api/v1",
+      }),
     ).toThrow(ConfigurationError);
   });
 
@@ -53,7 +68,7 @@ describe("loadConfig", () => {
     expect(summary).toEqual({
       apiEnvironment: "sandbox",
       requestTimeoutMs: 15_000,
-      writesEnabled: false
+      writesEnabled: false,
     });
     expect(JSON.stringify(summary)).not.toContain("test-key");
     expect(JSON.stringify(summary)).not.toContain("test-org");
