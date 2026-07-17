@@ -23,6 +23,26 @@ Repository guidance:
 - [Security policy](SECURITY.md)
 - [Contribution guide](CONTRIBUTING.md)
 
+## Development quickstart
+
+The initial scaffold provides one read-only MCP tool, `search_part_masters`, over local STDIO. It validates upstream part-master responses at runtime, strips fields that are not approved for search results, defaults to the 1Factory sandbox, and refuses non-allowlisted API hosts.
+
+The `onefactory://server/status` resource reports the server version, transport, timeout, write setting, and named API environment. It never returns credentials or the organization identifier, and reading it does not contact 1Factory.
+
+Prerequisites:
+
+- Node.js 20 or newer
+- A 1Factory sandbox organization ID and API key
+
+```bash
+npm install
+cp .env.example .env
+npm run build
+npm test
+```
+
+Load the environment variables through your local secret-management approach, then configure your MCP client to launch `node dist/index.js`. Do not place secrets directly in shared MCP configuration files.
+
 ## What the integration can expose
 
 The public 1Factory API covers part masters, manufacturing and receiving plans, inspections, first-article inspections (FAIs), customers, suppliers, QMS records, and work-order lists. The published specification is available as [OpenAPI 3.0 JSON](https://www.1factory.com/api/v1/1factory-api.json).

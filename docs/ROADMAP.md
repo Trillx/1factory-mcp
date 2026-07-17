@@ -22,22 +22,24 @@ Status: in progress
 - [x] Add `.gitignore` and safe environment-variable examples.
 - [x] Add contribution and vulnerability-reporting policies.
 - [x] Select and add an open-source license.
-- [ ] Create the public GitHub repository.
-- [ ] Enable GitHub private vulnerability reporting, secret scanning, and dependency alerts where available.
-- [ ] Add issue and pull-request templates.
+- [x] Create the public GitHub repository.
+- [x] Enable GitHub private vulnerability reporting, secret scanning, push protection, and dependency alerts.
+- [x] Add issue and pull-request templates.
 
 Exit criteria: the repository is public, licensed, contains no credentials, and clearly states that it is unofficial and pre-release.
 
 ## Phase 1 — Minimal read-only MCP server
 
-- [ ] Scaffold TypeScript source, test, and build configuration.
-- [ ] Add typed configuration loading for base URL, organization ID, and API key.
-- [ ] Fail closed when configuration is missing, malformed, or points to an unapproved host.
-- [ ] Implement an HTTP client that injects credentials internally and redacts them from errors.
-- [ ] Implement upstream error normalization, timeouts, response-size limits, and rate-limit reporting.
-- [ ] Expose a health/version resource that never tests or reveals credentials.
-- [ ] Implement `search_part_masters` as the first end-to-end MCP tool.
-- [ ] Add unit tests proving secrets never appear in tool results or logs.
+- [x] Scaffold TypeScript source, test, and build configuration.
+- [x] Add typed configuration loading for base URL, organization ID, and API key.
+- [x] Fail closed when configuration is missing, malformed, or points to an unapproved host.
+- [x] Implement an HTTP client that injects credentials internally and redacts them from errors.
+- [x] Implement upstream error normalization, timeouts, response-size limits, and rate-limit reporting.
+- [x] Validate part-master response bodies and strip unapproved fields with a runtime schema.
+- [x] Expose a health/version resource that never tests or reveals credentials.
+- [x] Implement `search_part_masters` as the first end-to-end MCP tool.
+- [x] Add unit tests proving upstream error content and secrets are not reflected to callers.
+- [x] Add MCP protocol-level tests for tool discovery, tool calls, and status-resource reads.
 
 Exit criteria: a local MCP client can search synthetic or sandbox part-master data over STDIO without exposing credentials.
 
